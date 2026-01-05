@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this-in-production")
 
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ["*"]
 
@@ -135,10 +135,14 @@ USE_TZ = True
 # --------------------------------------------------
 # STATIC FILES
 # --------------------------------------------------
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    ...
+]
 # --------------------------------------------------
 # DEFAULT PRIMARY KEY
 # --------------------------------------------------
