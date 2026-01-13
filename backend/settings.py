@@ -1,13 +1,7 @@
-print(">>> SETTINGS FILE LOADED <<<")
-
-
 from pathlib import Path
 import os
-import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
-
-
-
+import dj_database_url
 
 # --------------------------------------------------
 # BASE DIR
@@ -15,17 +9,28 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# --------------------------------------------------
+# ENV LOADING (LOCAL ONLY)
+# --------------------------------------------------
+if os.environ.get("RENDER") is None:
+    # Running locally
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+
+def get_env(name: str, default=None):
+    value = os.environ.get(name, default)
+    if value is None:
+        raise ImproperlyConfigured(f"Missing environment variable: {name}")
+    return value
+
 
 # --------------------------------------------------
 # SECURITY
 # --------------------------------------------------
-def get_env(var_name: str) -> str:
-    value = os.environ.get(var_name)
-    if value is None:
-        raise ImproperlyConfigured(f"Missing environment variable: {var_name}")
-    return value
-
-
 SECRET_KEY = get_env("SECRET_KEY")
 OPENAI_API_KEY = get_env("OPENAI_API_KEY")
 
@@ -76,7 +81,6 @@ MIDDLEWARE = [
 ]
 
 
-
 # --------------------------------------------------
 # CORS
 # --------------------------------------------------
@@ -116,20 +120,26 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 
 # --------------------------------------------------
-# DATABASE (PostgreSQL on Render, SQLite locally)
+# DATABASE
 # --------------------------------------------------
-DATABASE_URL = get_env("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-
-if not DATABASE_URL:
-    raise ImproperlyConfigured("DATABASE_URL is not set")
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "test.sqlite3",
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+        )
     }
-}
+else:
+    # Local fallback only
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
 
 # --------------------------------------------------
 # AUTH PASSWORD VALIDATION
@@ -146,9 +156,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # INTERNATIONALIZATION
 # --------------------------------------------------
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
 USE_TZ = True
 
@@ -156,8 +164,9 @@ USE_TZ = True
 # --------------------------------------------------
 # STATIC FILES
 # --------------------------------------------------
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 
 # --------------------------------------------------
 # DEFAULT PRIMARY KEY
