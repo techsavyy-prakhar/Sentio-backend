@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
+
 
 
 
@@ -9,16 +11,23 @@ from dotenv import load_dotenv
 # BASE DIR
 # --------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
+
 
 
 # --------------------------------------------------
 # SECURITY
 # --------------------------------------------------
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this-in-production")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+def get_env(var_name: str) -> str:
+    value = os.environ.get(var_name)
+    if value is None:
+        raise ImproperlyConfigured(f"Missing environment variable: {var_name}")
+    return value
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
+SECRET_KEY = get_env("SECRET_KEY")
+OPENAI_API_KEY = get_env("OPENAI_API_KEY")
+
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = ["*"]
 
