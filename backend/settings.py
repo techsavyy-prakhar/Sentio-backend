@@ -117,6 +117,8 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # DATABASE (PostgreSQL on Render, SQLite locally)
 # --------------------------------------------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
+print("DATABASE_URL present:", "DATABASE_URL" in os.environ)
+
 
 if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL is not set")
