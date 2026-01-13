@@ -4,17 +4,16 @@ import logging
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-HARD_BLOCK_CATEGORIES = {
-    "sexual_minors",
-    "violence_graphic",
-    "self_harm_instructions",
-    "self_harm_intent",
-    "hate_threatening",
-    "harassment_threatening",
-    "extremism",
+CATEGORY_THRESHOLDS = {
+    "sexual_minors": 0.80,
+    "violence_graphic": 0.80,
+    "self_harm_instructions": 0.75,
+    "self_harm_intent": 0.75,
+    "hate_threatening": 0.60,
+    "harassment_threatening": 0.60,
+    "extremism": 0.70,
 }
 
-CONFIDENCE_THRESHOLD = 0.85  
 
 def is_content_allowed(text: str) -> bool:
     if not text or not text.strip():
@@ -28,10 +27,10 @@ def is_content_allowed(text: str) -> bool:
 
         result = response.results[0]
 
-        for category in HARD_BLOCK_CATEGORIES:
+        for category, threshold in CATEGORY_THRESHOLDS.items():
             if (
                 result.categories.get(category) is True
-                and result.category_scores.get(category, 0) >= CONFIDENCE_THRESHOLD
+                and result.category_scores.get(category, 0) >= threshold
             ):
                 return False
 
