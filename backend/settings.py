@@ -1,3 +1,6 @@
+print(">>> SETTINGS FILE LOADED <<<")
+
+
 from pathlib import Path
 import os
 import dj_database_url
@@ -122,10 +125,10 @@ if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL is not set")
 
 DATABASES = {
-    "default": dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-    )
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "test.sqlite3",
+    }
 }
 
 # --------------------------------------------------
