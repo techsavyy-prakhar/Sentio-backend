@@ -116,8 +116,7 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # --------------------------------------------------
 # DATABASE (PostgreSQL on Render, SQLite locally)
 # --------------------------------------------------
-DATABASE_URL = os.environ.get("DATABASE_URL")
-print("DATABASE_URL present:", "DATABASE_URL" in os.environ)
+DATABASE_URL = get_env("DATABASE_URL")
 
 
 if not DATABASE_URL:
