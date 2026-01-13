@@ -15,6 +15,8 @@ CATEGORY_THRESHOLDS = {
 }
 
 
+
+
 def is_content_allowed(text: str) -> bool:
     if not text or not text.strip():
         return True
@@ -28,14 +30,17 @@ def is_content_allowed(text: str) -> bool:
         result = response.results[0]
 
         for category, threshold in CATEGORY_THRESHOLDS.items():
-            if (
-                result.categories.get(category) is True
-                and result.category_scores.get(category, 0) >= threshold
-            ):
+            flagged = getattr(result.categories, category, False)
+            score = getattr(result.category_scores, category, 0.0)
+
+            if flagged and score >= threshold:
+                logging.warning(
+                    f"Blocked content | category={category} | score={score}"
+                )
                 return False
 
         return True
 
     except Exception as e:
         logging.error(f"Moderation API failure: {e}")
-        return True
+        return True  # fail open (Apple-safe)
