@@ -1,17 +1,22 @@
 from pathlib import Path
 import os
 import dj_database_url
+from dotenv import load_dotenv
+
+
 
 # --------------------------------------------------
 # BASE DIR
 # --------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 # --------------------------------------------------
 # SECURITY
 # --------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this-in-production")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
@@ -38,8 +43,9 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
-    ]
+    ],
 }
+
 
 # --------------------------------------------------
 # MIDDLEWARE

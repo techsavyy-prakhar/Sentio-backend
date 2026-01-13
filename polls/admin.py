@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Poll, Vote
+from .models import Poll, Vote, Report
 
 
 @admin.register(Poll)
@@ -16,3 +16,11 @@ class VoteAdmin(admin.ModelAdmin):
     search_fields = ("device_id",)
     list_filter = ("vote_value", "poll")
     ordering = ("-created_at",)
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "poll", "reported_at", "device_id")
+    search_fields = ("poll__question",)
+    list_filter = ("reported_at",)
+    ordering = ("-reported_at",)

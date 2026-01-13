@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Poll, Vote
+from .models import Poll, Vote, Report
 
 
 class PollSerializer(serializers.Serializer):
@@ -15,3 +15,8 @@ class VoteSerializer(serializers.Serializer):
     poll = serializers.CharField()
     device_id = serializers.CharField()
     vote_value = serializers.BooleanField()
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = ["id", "poll", "reason", "reported_at", "device_id"]
