@@ -14,12 +14,34 @@ CATEGORY_THRESHOLDS = {
     "extremism": 0.70,
 }
 
+PROTECTED_GROUPS = {
+    "muslim", "christian", "hindu", "jew", "jews",
+    "gay", "lesbian", "trans", "transgender",
+    "black", "white", "dalit", "brahmin",
+}
 
+EXCLUSION_PHRASES = {
+    "ban", "banned", "remove", "kick out",
+    "expel", "eliminate", "exclude",
+    "should be banned", "should not be allowed",
+}
+
+def violates_protected_group_policy(text: str) -> bool:
+    text = text.lower()
+
+    if any(group in text for group in PROTECTED_GROUPS):
+        if any(phrase in text for phrase in EXCLUSION_PHRASES):
+            return True
+
+    return False
 
 
 def is_content_allowed(text: str) -> bool:
     if not text or not text.strip():
         return True
+    if violates_protected_group_policy(text):
+        logging.warning("Blocked protected-group exclusion content")
+        return False
 
     try:
         response = client.moderations.create(
@@ -34,13 +56,10 @@ def is_content_allowed(text: str) -> bool:
             score = getattr(result.category_scores, category, 0.0)
 
             if flagged and score >= threshold:
-                logging.warning(
-                    f"Blocked content | category={category} | score={score}"
-                )
                 return False
 
         return True
 
     except Exception as e:
         logging.error(f"Moderation API failure: {e}")
-        return True  # fail open (Apple-safe)
+        return True  # fail open

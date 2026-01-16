@@ -2,10 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import IntegrityError
+from django.core.mail import send_mail
+from django.conf import settings
+
 
 from polls.utils.moderation import is_content_allowed
 
-from .models import Poll, Vote, Report
+from .models import Poll, Vote, Report, BlockedDevice
+
 from .serializers import ReportSerializer
 
 class PollDetailView(APIView):
@@ -30,7 +34,7 @@ class PollDetailView(APIView):
 class PollListView(APIView):
 
     def get(self, request):
-        polls = Poll.objects.all()
+        polls = Poll.objects.filter(is_active=True)
 
         data = [
             {
@@ -46,34 +50,35 @@ class PollListView(APIView):
             }
             for poll in polls
         ]
-
         return Response(data)
 
     def post(self, request):
         question = request.data.get("question", "").strip()
         description = request.data.get("description", "").strip()
+        device_id = request.data.get("device_id")
 
-        if not question:
+        if not question or not device_id:
             return Response(
-                {"error": "Question is required"},
+                {"error": "question and device_id are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # ✅ MODERATE ONCE (combine text)
+        if BlockedDevice.objects.filter(device_id=device_id).exists():
+            return Response(
+                {"error": "This device is blocked"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         combined_text = f"{question}\n{description}"
-
         if not is_content_allowed(combined_text):
             return Response(
-                {"error": "This content violates our community guidelines"},
+                {"error": "This content violates community guidelines"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         poll = Poll.objects.create(
             question=question,
             description=description,
+            device_id=device_id,
             is_active=True
         )
-
         return Response(
             {
                 "id": poll.id,
@@ -82,6 +87,8 @@ class PollListView(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+
 
 
 class VoteView(APIView):
@@ -117,7 +124,6 @@ class VoteView(APIView):
                 "total_votes": poll.votes.count(),
             }, status=status.HTTP_200_OK)
 
-        # 🟡 Vote check only
         if vote_value is None:
             return Response({"has_voted": False}, status=status.HTTP_200_OK)
 
@@ -148,14 +154,15 @@ class VoteView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+
 class ReportPollView(APIView):
     def post(self, request, poll_id):
-        device_id = request.data.get("device_id")
-        print("Reporting poll:", poll_id, "from device:", device_id)
+        reporter_device_id = request.data.get("device_id")
+        reason = request.data.get("reason", "")
 
-        if not device_id:
+        if not reporter_device_id:
             return Response(
-                {"error": "device_id is required"},
+                {"error": "device_id required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -167,27 +174,38 @@ class ReportPollView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # 🔍 Explicit check
-        if Report.objects.filter(poll=poll, device_id=device_id).exists():
+        if Report.objects.filter(
+            poll=poll,
+            reporter_device_id=reporter_device_id
+        ).exists():
             return Response(
-                {"error": "This device has already reported this poll"},
+                {"error": "Already reported"},
                 status=status.HTTP_409_CONFLICT
             )
 
-        try:
-            report = Report.objects.create(
-                poll=poll,
-                device_id=device_id,
-                reason=request.data.get("reason", "")
-            )
-        except IntegrityError:
-            # safety net (race condition)
-            return Response(
-                {"error": "This device has already reported this poll"},
-                status=status.HTTP_409_CONFLICT
+        report = Report.objects.create(
+            poll=poll,
+            reporter_device_id=reporter_device_id,
+            reason=reason
+        )
+        total_reports = poll.reports.count()
+
+        if total_reports >= 3:
+            poll.is_active = False
+            poll.save()
+
+        creator_reports = Report.objects.filter(
+            poll__device_id=poll.device_id
+        ).count()
+
+        if creator_reports >= 5:
+            BlockedDevice.objects.get_or_create(
+                device_id=poll.device_id,
+                defaults={"reason": "Repeated community violations"}
             )
 
         return Response(
-            ReportSerializer(report).data,
+            {"message": "Poll reported successfully"},
             status=status.HTTP_201_CREATED
         )
+
