@@ -10,7 +10,6 @@ from polls.utils.moderation import is_content_allowed
 
 from .models import Poll, Vote, Report, BlockedDevice
 
-from .serializers import ReportSerializer
 
 class PollDetailView(APIView):
     def get(self, request, poll_id):
@@ -28,6 +27,7 @@ class PollDetailView(APIView):
             "yes_votes": poll.votes.filter(vote_value=True).count(),
             "no_votes": poll.votes.filter(vote_value=False).count(),
             "total_votes": poll.votes.count(),
+            "creator_device_id": poll.device_id,
         })
 
 
@@ -46,6 +46,7 @@ class PollListView(APIView):
                 "updated_at": poll.updated_at.isoformat(),
                 "yes_votes": poll.votes.filter(vote_value=True).count(),
                 "no_votes": poll.votes.filter(vote_value=False).count(),
+                "creator_device_id": poll.device_id,
                 "total_votes": poll.votes.count(),
             }
             for poll in polls
