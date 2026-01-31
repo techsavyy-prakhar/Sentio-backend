@@ -57,3 +57,12 @@ class BlockedDevice(models.Model):
 
     def __str__(self):
         return f"Blocked: {self.device_id}"
+
+class DeviceNotification(models.Model):
+    device_id = models.CharField(max_length=255, unique=True)
+    push_token = models.CharField(max_length=255)
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.device_id} | enabled={self.is_enabled}"

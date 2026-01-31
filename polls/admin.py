@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Poll, Vote, Report, BlockedDevice
+from .models import Poll, Vote, Report, BlockedDevice, DeviceNotification
 
 
 # -----------------------
@@ -98,3 +98,17 @@ class BlockedDeviceAdmin(admin.ModelAdmin):
     search_fields = ("device_id",)
     ordering = ("-blocked_at",)
     list_per_page = 50
+
+
+@admin.register(DeviceNotification)
+class DeviceNotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        "device_id",
+        "push_token",
+        "is_enabled",
+        "created_at",
+    )
+    search_fields = ("device_id", "push_token")
+    list_filter = ("is_enabled", "created_at")
+    ordering = ("-created_at",)
+    list_per_page = 25

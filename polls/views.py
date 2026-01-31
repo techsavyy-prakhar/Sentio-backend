@@ -4,11 +4,15 @@ from rest_framework import status
 from django.db import IntegrityError
 from django.core.mail import send_mail
 from django.conf import settings
+import logging
+
 
 
 from polls.utils.moderation import is_content_allowed
+from polls.utils.notifications import send_poll_notification
 
-from .models import Poll, Vote, Report, BlockedDevice
+from .models import Poll, Vote, Report, BlockedDevice, DeviceNotification
+logger = logging.getLogger(__name__)
 
 
 class PollDetailView(APIView):
@@ -80,6 +84,10 @@ class PollListView(APIView):
             device_id=device_id,
             is_active=True
         )
+        try:
+            send_poll_notification(poll)
+        except Exception as e:
+            logger.error(f"Push notification failed for poll {poll.id}: {e}")
         return Response(
             {
                 "id": poll.id,
@@ -210,3 +218,27 @@ class ReportPollView(APIView):
             status=status.HTTP_201_CREATED
         )
 
+class RegisterDeviceView(APIView):
+    def post(self, request):
+        device_id = request.data.get("device_id")
+        push_token = request.data.get("push_token")
+        print(device_id, push_token)
+
+        if not device_id or not push_token:
+            return Response(
+                {"error": "device_id and push_token are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        DeviceNotification.objects.update_or_create(
+            device_id=device_id,
+            defaults={
+                "push_token": push_token,
+                "is_enabled": True,
+            },
+        )
+
+        return Response(
+            {"message": "Device registered successfully"},
+            status=status.HTTP_200_OK
+        )
