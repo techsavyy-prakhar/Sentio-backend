@@ -38,7 +38,7 @@ def send_poll_notification(poll):
             "Accept": "application/json",
             "Content-Type": "application/json",
         },
-        timeout=5000
+        timeout=100
     )
 
     return response.json()
