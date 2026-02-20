@@ -1,11 +1,18 @@
 from django.db import models
 
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
 class Poll(models.Model):
     question = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
     device_id = models.CharField(max_length=255, default="UNKNOWN_DEVICE")
+
+    categories = models.ManyToManyField(Category, related_name="polls")
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -13,6 +20,19 @@ class Poll(models.Model):
 
     def __str__(self):
         return self.question
+    
+class UserBlock(models.Model):
+    blocker_device_id = models.CharField(max_length=255)
+    blocked_device_id = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("blocker_device_id", "blocked_device_id")
+
+    def __str__(self):
+        return f"{self.blocker_device_id} blocked {self.blocked_device_id}"
+
+    
 
 
 class Vote(models.Model):

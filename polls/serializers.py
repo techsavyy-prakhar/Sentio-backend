@@ -20,3 +20,11 @@ class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
         fields = ["id", "poll", "reason", "reported_at", "device_id"]
+
+class ThemeRequestSerializer(serializers.Serializer):
+    category = serializers.CharField()
+
+
+class PollRequestSerializer(serializers.Serializer):
+    category = serializers.CharField()
+    theme = serializers.CharField()

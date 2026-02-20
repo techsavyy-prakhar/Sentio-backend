@@ -5,13 +5,15 @@ from django.db import IntegrityError
 from django.core.mail import send_mail
 from django.conf import settings
 import logging
+from .utils.open_ai_client import generate_themes, generate_polls
 
 
 
 from polls.utils.moderation import is_content_allowed
 from polls.utils.notifications import send_poll_notification
+from polls.serializers import ThemeRequestSerializer, PollRequestSerializer
 
-from .models import Poll, Vote, Report, BlockedDevice, DeviceNotification
+from .models import Poll, Vote, Report, BlockedDevice, DeviceNotification, Category, UserBlock
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +40,21 @@ class PollDetailView(APIView):
 class PollListView(APIView):
 
     def get(self, request):
-        polls = Poll.objects.filter(is_active=True)
+
+        category = request.query_params.get("category")
+        device_id = request.GET.get("device_id")
+        polls = Poll.objects.filter(is_active=True).order_by("-created_at")
+        blocked_users = []
+        if category:
+            polls = polls.filter(categories__name=category)
+        if device_id:
+            blocked_users = UserBlock.objects.filter(
+                blocker_device_id=device_id
+            ).values_list("blocked_device_id", flat=True)
+
+        polls = polls.exclude(device_id__in=blocked_users)
+
+        polls = polls.prefetch_related("votes", "categories").distinct()
 
         data = [
             {
@@ -52,15 +68,19 @@ class PollListView(APIView):
                 "no_votes": poll.votes.filter(vote_value=False).count(),
                 "creator_device_id": poll.device_id,
                 "total_votes": poll.votes.count(),
+                "categories": [c.name for c in poll.categories.all()],
             }
             for poll in polls
         ]
+
         return Response(data)
 
     def post(self, request):
         question = request.data.get("question", "").strip()
         description = request.data.get("description", "").strip()
         device_id = request.data.get("device_id")
+        categories = request.data.get("categories", [])
+
 
         if not question or not device_id:
             return Response(
@@ -84,6 +104,8 @@ class PollListView(APIView):
             device_id=device_id,
             is_active=True
         )
+        category_objs = Category.objects.filter(name__in=categories)
+        poll.categories.set(category_objs)
         try:
             send_poll_notification(poll)
         except Exception as e:
@@ -242,3 +264,62 @@ class RegisterDeviceView(APIView):
             {"message": "Device registered successfully"},
             status=status.HTTP_200_OK
         )
+    
+
+
+
+class BlockUserView(APIView):
+    def post(self, request):
+        blocker = request.data.get("blocker_device_id")
+        blocked = request.data.get("blocked_device_id")
+
+        if not blocker or not blocked:
+            return Response(
+                {"error": "Both device IDs required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if blocker == blocked:
+            return Response(
+                {"error": "Cannot block yourself"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        UserBlock.objects.get_or_create(
+            blocker_device_id=blocker,
+            blocked_device_id=blocked,
+        )
+
+        return Response(
+            {"success": True},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# AI Model Views
+
+
+class GenerateThemesView(APIView):
+
+    def post(self, request):
+        serializer = ThemeRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        category = serializer.validated_data["category"]
+
+        data = generate_themes(category)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+class GeneratePollsView(APIView):
+
+    def post(self, request):
+        serializer = PollRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = generate_polls(
+            serializer.validated_data["category"],
+            serializer.validated_data["theme"]
+        )
+
+        return Response(data, status=status.HTTP_200_OK)
